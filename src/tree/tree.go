@@ -6,7 +6,7 @@ import (
 	"DiskGo/src/utils"
 )
 
-const displayDepth = 2 // 0 for no display limit
+const displayDepth = 1 // 0 for no display limit
 
 type Node struct {
 	Name     string

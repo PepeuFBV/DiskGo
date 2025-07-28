@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"sync"
 
@@ -11,10 +10,12 @@ import (
 	"DiskGo/src/tree"
 )
 
-const maxCPUs = 4
+const maxCPUs = 12
+
+const userHomeDirAsRoot = false
 
 func main() {
-	fmt.Println(runtime.NumCPU(), "CPU cores available")
+	fmt.Println(runtime.NumCPU(), "CPU cores available, using", maxCPUs, "cores for scanning.")
 	runtime.GOMAXPROCS(maxCPUs)
 	fmt.Println("Starting scan...")
 
@@ -23,7 +24,7 @@ func main() {
 
 	waitgroup.Add(1)
 	go func() {
-		rootNode, _ := scanner.SearchAllDirs(GetRootDir(), 0, &waitgroup)
+		rootNode, _ := scanner.SearchAllDirs(GetRootDir(userHomeDirAsRoot), 0, &waitgroup)
 		waitgroup.Wait()
 		result <- rootNode // send only when all children are done
 	}()
@@ -38,11 +39,22 @@ func main() {
 	tree.PrintTree(rootNode)
 }
 
-func GetRootDir() string {
-	home, err := os.UserHomeDir()
+func GetRootDir(useHomeDir bool) string {
+	if useHomeDir {
+		return GetUserHomeDir()
+	}
+
+    if runtime.GOOS == "windows" {
+        return "C:\\"
+    }
+    return "/"
+}
+
+func GetUserHomeDir() string {
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		fmt.Println("Error getting home directory:", err)
-		return "/"
+		return ""
 	}
-	return filepath.Join(home, "repos")
+	return homeDir
 }
