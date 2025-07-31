@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 )
 
+// variáveis globais para contadores atômicos (exclusão mútua)
 var contadorArquivos int64 // contador atômico para arquivos
 var contadorDiretorios int64  // contador atômico para diretórios
 var totalBytesVasculhados int64 // contador atômico para total de bytes vasculhados
@@ -125,7 +126,7 @@ func BuscarTodosDiretorios(caminho string, profundidade int, globalWG *sync.Wait
                         log.Printf("Erro ao buscar %s: %v", p, err)
                     }
                 }(caminhoFilho)
-            default: // se o semáforo estiver cheio, processa sincronamente nesta goroutine
+            default: // se o semáforo estiver cheio, processa sincronamente nesta goroutine (sem concorrência)
                 globalWG.Add(1) // adiciona ao waitgroup principal
                 noFilho, err := BuscarTodosDiretorios(caminhoFilho, profundidade+1, globalWG)
                 if err == nil && noFilho != nil {
