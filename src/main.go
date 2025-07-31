@@ -26,28 +26,28 @@ func main() {
 	w := a.NewWindow("Disk Tree")
 
 	// logs de execução do terminal, pasível de remoção após o fim da interface
-	fmt.Println(runtime.NumCPU(), "CPU cores available, using", maxCPUs, "cores for scanning.")
+	fmt.Println(runtime.NumCPU(), "CPU cores disponíveis, usando", maxCPUs, "cores para varredura.")
 	runtime.GOMAXPROCS(maxCPUs)
 	fmt.Println("Iniciando varredura...")
 
-	result := make(chan *tree.Node)
+	resultado := make(chan *tree.Node)
 
 	// Goroutine para chamar a função de busca dos diretórios
 	go func() {
 		var waitgroup sync.WaitGroup // número de goroutines concorrentes global
 		// só adiciona 1 para a raiz, as goroutines filhas adicionam para si mesmas
 		waitgroup.Add(1)
-		rootNode, _ := scanner.BuscarTodosDiretorios(PegarDiretorioRaiz(userHomeDirAsRoot), 0, &waitgroup)
+		raiz, _ := scanner.BuscarTodosDiretorios(PegarDiretorioRaiz(userHomeDirAsRoot), 0, &waitgroup)
 		waitgroup.Wait() // espera todas as goroutines terminarem
 
-		result <- rootNode
+		resultado <- raiz
 	}()
 
 	// recebe o resultado do canal
-	rootNode := <-result
+	raiz := <- resultado
 
-	if rootNode == nil {
-		fmt.Println("No directories found.")
+	if raiz == nil {
+		fmt.Println("Nenhum diretório encontrado.")
 		return
 	}
 
@@ -61,7 +61,7 @@ func main() {
 	fmt.Printf("Total de bytes vasculhados: %s\n", utils.SizeConverter{Bytes: uint64(totalBytes)}.ToReadable())
 
 	// instância o Widget Tree e exibe
-	treeWidget := criarTreeWidget(rootNode) // função estrela da noite
+	treeWidget := criarTreeWidget(raiz) // função estrela da noite
 	w.SetContent(treeWidget)
 	w.ShowAndRun()
 }
