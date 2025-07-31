@@ -77,18 +77,17 @@ func BuscarTodosDiretorios(caminho string, profundidade int, grupoEspera *sync.W
         Size: 0,
         Type: func() string {
             if info.IsDir() {
-                atomic.AddInt64(&contadorDiretorios, 1)
                 return "diretorio"
             }
-            atomic.AddInt64(&contadorArquivos, 1)
             return "arquivo"
         }(),
     }
-    LogarProgresso()
 
     if !info.IsDir() {
         no.Size = info.Size()
         atomic.AddInt64(&totalBytesVasculhados, info.Size())
+        atomic.AddInt64(&contadorArquivos, 1)
+        LogarProgresso()
         return no, nil
     } else {
         entradas, err := os.ReadDir(caminho)
@@ -140,6 +139,12 @@ func BuscarTodosDiretorios(caminho string, profundidade int, grupoEspera *sync.W
             }
         }
         localWG.Wait() // espera todas as goroutines nesta função terminarem
+    }
+
+    // conta o diretório apenas quando vai ser retornado com sucesso
+    if no.Type == "diretorio" {
+        atomic.AddInt64(&contadorDiretorios, 1)
+        LogarProgresso()
     }
 
     return no, nil

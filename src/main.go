@@ -51,16 +51,14 @@ func main() {
 		return
 	}
 
-	// conta e exibe o total de nós encontrados
-	totalNodes := tree.ContarTotalNodes(rootNode)
 	arquivos, diretorios := scanner.ObterContadores()
 	totalBytes := scanner.ObterTotalBytesVasculhados()
+	totalNodes := arquivos + diretorios
 	fmt.Printf("Varredura concluída!\n")
 	fmt.Printf("Total de nós na árvore: %d\n", totalNodes)
 	fmt.Printf("Arquivos encontrados: %d\n", arquivos)
 	fmt.Printf("Diretórios encontrados: %d\n", diretorios)
 	fmt.Printf("Total de bytes vasculhados: %s\n", utils.SizeConverter{Bytes: uint64(totalBytes)}.ToReadable())
-	fmt.Printf("Total geral: %d\n", arquivos+diretorios)
 
 	// instância o Widget Tree e exibe
 	treeWidget := criarTreeWidget(rootNode) // função estrela da noite

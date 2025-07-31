@@ -31,16 +31,3 @@ func ImprimirArvoreRecursivo(raiz *Node, indent string, profundidade int) {
     }
 }
 
-// ContarTotalNodes conta o número total de nós na árvore
-func ContarTotalNodes(raiz *Node) int {
-    if raiz == nil {
-        return 0
-    }
-    
-    total := 1 // conta o nó atual
-    for _, filho := range raiz.Children {
-        total += ContarTotalNodes(filho)
-    }
-    
-    return total
-}
