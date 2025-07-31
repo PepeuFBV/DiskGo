@@ -34,9 +34,8 @@ func main() {
 
 	// Goroutine para chamar a função de busca dos diretórios
 	go func() {
-		var waitgroup sync.WaitGroup // número de goroutines concorrentes global
-		// só adiciona 1 para a raiz, as goroutines filhas adicionam para si mesmas
-		waitgroup.Add(1)
+		var waitgroup sync.WaitGroup // número de goroutines concorrentes global para aguardar finalização
+		waitgroup.Add(1) // só adiciona 1 para a raiz, as goroutines filhas adicionam para si mesmas
 		raiz, _ := scanner.BuscarTodosDiretorios(PegarDiretorioRaiz(userHomeDirAsRoot), 0, &waitgroup)
 		waitgroup.Wait() // espera todas as goroutines terminarem
 
@@ -66,8 +65,7 @@ func main() {
 	w.ShowAndRun()
 }
 
-// retorna diretório raiz com base no sistema operacional
-func PegarDiretorioRaiz(useHomeDir bool) string {
+func PegarDiretorioRaiz(useHomeDir bool) string { // retorna diretório raiz com base no sistema operacional
 	if useHomeDir {
 		return ObterDiretorioHomeUsuario()
 	}
@@ -115,10 +113,10 @@ func criarTreeWidget(raiz *tree.Node) *widget.Tree {
 
 	// cria o rótulo visual para cada item da árvore
 	createNode := func(branch bool) fyne.CanvasObject {
-	icone := widget.NewIcon(nil)
-	texto := widget.NewLabel("")
-	return container.NewHBox(icone, texto)
-}
+		icone := widget.NewIcon(nil)
+		texto := widget.NewLabel("")
+		return container.NewHBox(icone, texto)
+	}
 
 	updateNode := func(idUnico string, branch bool, obj fyne.CanvasObject) {
 		no := mapaDeNos[idUnico]
