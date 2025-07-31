@@ -105,23 +105,24 @@ func BuscarTodosDiretorios(caminho string, profundidade int, grupoEspera *sync.W
                 localWG.Add(1)
                 grupoEspera.Add(1)
                 atomic.AddInt64(&goroutinesAtivas, 1) // incrementa contador de goroutines ativas
+
                 go func(p string) { // goroutine para processar cada filho
-                    defer localWG.Done()
-                    defer func() {
+                    defer localWG.Done() // marca a goroutine local como concluída
+                    defer func() { // decrementa contador de goroutines ativas e libera o semáforo
                         atomic.AddInt64(&goroutinesAtivas, -1) // decrementa contador de goroutines ativas
                         <-semaforo // libera o semáforo
-                        if r := recover(); r != nil {
+                        if r := recover(); r != nil { // captura pânico para evitar crash
                             log.Printf("panic in goroutine for %s: %v", p, r)
                         }
                     }()
 
-                    noFilho, err := BuscarTodosDiretorios(p, profundidade+1, grupoEspera)
+                    noFilho, err := BuscarTodosDiretorios(p, profundidade + 1, grupoEspera)
                     if err == nil && noFilho != nil {
                         mutex.Lock()
                         no.Children = append(no.Children, noFilho)
                         no.Size += noFilho.Size
                         mutex.Unlock()
-                    } else if err != nil && !os.IsNotExist(err) {
+                    } else if err != nil && !os.IsNotExist(err) { // ignora erros de arquivo inexistente
                         log.Printf("Erro ao buscar %s: %v", p, err)
                     }
                 }(caminhoFilho)

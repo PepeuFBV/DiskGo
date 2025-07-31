@@ -22,11 +22,11 @@ func (s SizeConverter) ToReadable() string {
 	if s.Bytes < 1024 {
 		return fmt.Sprintf("%d B", s.Bytes)
 	} else if s.Bytes < 1024*1024 {
-		return fmt.Sprintf("%.2f KB", float64(s.Bytes)/1024)
+		return fmt.Sprintf("%.2f KB", float64(s.Bytes) / 1024)
 	} else if s.Bytes < 1024*1024*1024 {
-		return fmt.Sprintf("%.2f MB", float64(s.Bytes)/(1024*1024))
+		return fmt.Sprintf("%.2f MB", float64(s.Bytes) / (1024*1024))
 	} else if s.Bytes < 1024*1024*1024*1024 {
-		return fmt.Sprintf("%.2f GB", float64(s.Bytes)/(1024*1024*1024))
+		return fmt.Sprintf("%.2f GB", float64(s.Bytes) / (1024*1024*1024))
 	}
-	return fmt.Sprintf("%.2f TB", float64(s.Bytes)/(1024*1024*1024*1024))
+	return fmt.Sprintf("%.2f TB", float64(s.Bytes) / (1024*1024*1024*1024))
 }
