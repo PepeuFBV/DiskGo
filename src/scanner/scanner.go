@@ -14,6 +14,7 @@ import (
 var contadorArquivos int64 // contador atômico para arquivos
 var contadorDiretorios int64  // contador atômico para diretórios
 var totalBytesVasculhados int64 // contador atômico para total de bytes vasculhados
+var goroutinesAtivas int64 // contador atômico para goroutines ativas do programa
 
 const profundidadeMaxima = -1 // -1 para sem limite
 var maximoGoroutines = 150 // limitar goroutines concorrentes, -1 para sem limite
@@ -48,7 +49,7 @@ func LogarProgresso() {
             runtime.ReadMemStats(&m)
             memAtual := utils.SizeConverter{Bytes: m.Alloc}.ToReadable()
             memTotalVasculhada := utils.SizeConverter{Bytes: uint64(atomic.LoadInt64(&totalBytesVasculhados))}.ToReadable()
-            numGoroutines := runtime.NumGoroutine()
+            numGoroutines := atomic.LoadInt64(&goroutinesAtivas)
             log.Printf("Progresso: arquivos=%d, dirs=%d, mem_atual=%s, mem_total_vasculhada=%s, goroutines=%d", total, atomic.LoadInt64(&contadorDiretorios), memAtual, memTotalVasculhada, numGoroutines)
         }
     }
@@ -104,9 +105,11 @@ func BuscarTodosDiretorios(caminho string, profundidade int, grupoEspera *sync.W
             case semaforo <- struct{}{}: // se o semáforo não estiver cheio, processa em goroutine
                 localWG.Add(1)
                 grupoEspera.Add(1)
+                atomic.AddInt64(&goroutinesAtivas, 1) // incrementa contador de goroutines ativas
                 go func(p string) { // goroutine para processar cada filho
                     defer localWG.Done()
                     defer func() {
+                        atomic.AddInt64(&goroutinesAtivas, -1) // decrementa contador de goroutines ativas
                         <-semaforo // libera o semáforo
                         if r := recover(); r != nil {
                             log.Printf("panic in goroutine for %s: %v", p, r)
@@ -148,4 +151,8 @@ func ObterContadores() (arquivos int64, diretorios int64) {
 
 func ObterTotalBytesVasculhados() int64 {
     return atomic.LoadInt64(&totalBytesVasculhados)
+}
+
+func ObterGoroutinesAtivas() int64 {
+    return atomic.LoadInt64(&goroutinesAtivas)
 }
