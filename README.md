@@ -10,6 +10,10 @@ DiskGo é um aplicativo em Go projetado para facilitar a leitura e análise de d
 - Usa concorrência para varredura mais rápida
 - Formatação de tamanho legível (B, KB, MB, GB, TB)
 
+## Screenshot
+
+![DiskGo Screenshot](images/diskgo-example.png)
+
 ## Instalação de Dependências (Linux)
 
 Antes de rodar o DiskGo, instale as dependências necessárias para o Fyne:
