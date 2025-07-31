@@ -3,15 +3,15 @@ package utils
 import "fmt"
 
 type SizeConverter struct {
-    Bytes uint64
+	Bytes uint64
 }
 
 func (s SizeConverter) ToMB() float64 {
-    return float64(s.Bytes) / (1024 * 1024)
+	return float64(s.Bytes) / (1024 * 1024)
 }
 
 func (s SizeConverter) ToGB() float64 {
-    return float64(s.Bytes) / (1024 * 1024 * 1024)
+	return float64(s.Bytes) / (1024 * 1024 * 1024)
 }
 
 func (s SizeConverter) ToTB() float64 {

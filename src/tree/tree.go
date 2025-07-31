@@ -1,11 +1,11 @@
 package tree
 
 import (
-	"fmt"
 	"DiskGo/src/utils"
+	"fmt"
 )
 
-const displayDepth = 1 // 0 for no display limit
+const profundidadeExibicao = 1 // 0 para sem limite de exibição
 
 type Node struct {
 	Name     string
@@ -15,18 +15,32 @@ type Node struct {
     ID       string //para o widget tree
 }
 
-func PrintTree(root *Node) {
-    PrintTreeRecursive(root, "", 0)
+func ImprimirArvore(raiz *Node) {
+    ImprimirArvoreRecursivo(raiz, "", 0)
 }
 
-func PrintTreeRecursive(root *Node, indent string, depth int) {
-    if root == nil {
+func ImprimirArvoreRecursivo(raiz *Node, indent string, profundidade int) {
+    if raiz == nil {
         return
     }
-    fmt.Printf("%sName: %s, Type: %s, Size: %s bytes\n", indent, root.Name, root.Type, utils.SizeConverter{Bytes: uint64(root.Size)}.ToReadable())
-    if displayDepth == 0 || depth < displayDepth {
-        for _, child := range root.Children {
-            PrintTreeRecursive(child, indent + "  ", depth + 1)
+    fmt.Printf("%sNome: %s, Tipo: %s, Tamanho: %s bytes\n", indent, raiz.Name, raiz.Type, utils.SizeConverter{Bytes: uint64(raiz.Size)}.ToReadable())
+    if profundidadeExibicao == 0 || profundidade < profundidadeExibicao {
+        for _, filho := range raiz.Children {
+            ImprimirArvoreRecursivo(filho, indent + "  ", profundidade + 1)
         }
     }
+}
+
+// ContarTotalNodes conta o número total de nós na árvore
+func ContarTotalNodes(raiz *Node) int {
+    if raiz == nil {
+        return 0
+    }
+    
+    total := 1 // conta o nó atual
+    for _, filho := range raiz.Children {
+        total += ContarTotalNodes(filho)
+    }
+    
+    return total
 }

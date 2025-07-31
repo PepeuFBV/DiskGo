@@ -1,48 +1,58 @@
+
 # DiskGo
 
-DiskGo is a Go-based application designed to facilitate disk/drive reading and analysis. The program traverses directories, reads files, and analyzes disk usage with ease.
+DiskGo é um aplicativo em Go projetado para facilitar a leitura e análise de discos/unidades. O programa percorre diretórios, lê arquivos e analisa o uso do disco de forma simples.
 
-## Features
+## Funcionalidades
 
-- Recursively scans directories and files
-- Displays directory tree structure with file sizes
-- Uses concurrency for faster scanning
-- Human-readable size formatting (B, KB, MB, GB, TB)
+- Varredura recursiva de diretórios e arquivos
+- Exibe a estrutura de árvore dos diretórios com tamanhos de arquivos
+- Usa concorrência para varredura mais rápida
+- Formatação de tamanho legível (B, KB, MB, GB, TB)
 
-## Usage
+## Instalação de Dependências (Linux)
 
-1. Build the project:
+Antes de rodar o DiskGo, instale as dependências necessárias para o Fyne:
+
+```sh
+sudo apt-get update
+sudo apt-get install libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libgl1-mesa-dev libxxf86vm-dev
+```
+
+## Uso
+
+1. Compile o projeto:
 
     ```sh
-    go build -o diskgo main.go
+    go build -o diskgo src/main.go
     ```
 
-2. Run the executable:
+2. Execute o binário:
 
     ```sh
     ./diskgo
     ```
 
-By default, DiskGo scans the `repos` directory inside your home folder.
+Por padrão, o DiskGo faz a varredura do diretório home do usuário atual. Você pode mudar isso na variável `userHomeDirAsRoot` no arquivo `src/main.go` (true ou false).
 
-### Quick Start
+### Execução Rápida
 
-You can also quickly run the application without building it by using:
+Você também pode rodar rapidamente o aplicativo sem compilar usando:
 
 ```sh
-go run main.go
+go run src/main.go
 ```
 
-## Installation
+## Instalação
 
-Clone the repository and build using Go:
+Clone o repositório e rode usando Go:
 
 ```sh
 git clone https://github.com/pepeufbv/DiskGo.git
 cd DiskGo
-go run main.go
+go run src/main.go
 ```
 
-## License
+## Licença
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para mais detalhes.
