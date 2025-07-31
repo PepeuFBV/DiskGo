@@ -17,7 +17,7 @@ var totalBytesVasculhados int64 // contador atômico para total de bytes vasculh
 var goroutinesAtivas int64 // contador atômico para goroutines ativas do programa
 
 const profundidadeMaxima = -1 // -1 para sem limite
-var maximoGoroutines = 150 // limitar goroutines concorrentes, -1 para sem limite
+var maximoGoroutines = 300 // limitar goroutines concorrentes, 0 para sem limite
 const maximoMemoriaBytes = 1024 * 1024 * 1024 * 12 // limite de memória de 12 GB
 
 const imprimirProgresso = true // habilitar log de progresso
@@ -25,10 +25,9 @@ const imprimirCadaArquivos = 100000 // 0 para desabilitar log de progresso
 
 var semaforo chan struct{} // semáforo para limitar goroutines concorrentes
 
-func init() {
-    // sempre inicializa o semáforo com um valor seguro
-    if maximoGoroutines <= 0 {
-        maximoGoroutines = 100 // valor seguro padrão reduzido
+func init() { // sempre inicializa o semáforo com um valor seguro
+    if maximoGoroutines == 0 {
+        maximoGoroutines = 200 // valor seguro padrão reduzido
     }
     semaforo = make(chan struct{}, maximoGoroutines)
 }
@@ -55,8 +54,8 @@ func LogarProgresso() {
     }
 }
 
-func BuscarTodosDiretorios(caminho string, profundidade int, grupoEspera *sync.WaitGroup) (*tree.Node, error) {
-    defer grupoEspera.Done() // marca a goroutine como concluída
+func BuscarTodosDiretorios(caminho string, profundidade int, globalWG *sync.WaitGroup) (*tree.Node, error) {
+    defer globalWG.Done() // marca a goroutine como concluída
 
     VerificarLimiteMemoria()
 
@@ -84,7 +83,7 @@ func BuscarTodosDiretorios(caminho string, profundidade int, grupoEspera *sync.W
     }
 
     if !info.IsDir() {
-        no.Size = info.Size()
+        no.Size = info.Size() // adiciona o tamanho do arquivo no nó
         atomic.AddInt64(&totalBytesVasculhados, info.Size())
         atomic.AddInt64(&contadorArquivos, 1)
         LogarProgresso()
@@ -95,7 +94,7 @@ func BuscarTodosDiretorios(caminho string, profundidade int, grupoEspera *sync.W
             return nil, err
         }
 
-        var mutex sync.Mutex // mutex para proteger o estado compartilhado
+        var mutex sync.Mutex // mutex para proteger o estado compartilhado de memória do nó atual
         var localWG sync.WaitGroup // waitgroup local para goroutines nesta função
 
         for _, entrada := range entradas {
@@ -103,7 +102,7 @@ func BuscarTodosDiretorios(caminho string, profundidade int, grupoEspera *sync.W
             select {
             case semaforo <- struct{}{}: // se o semáforo não estiver cheio, processa em goroutine
                 localWG.Add(1)
-                grupoEspera.Add(1)
+                globalWG.Add(1)
                 atomic.AddInt64(&goroutinesAtivas, 1) // incrementa contador de goroutines ativas
 
                 go func(p string) { // goroutine para processar cada filho
@@ -116,7 +115,7 @@ func BuscarTodosDiretorios(caminho string, profundidade int, grupoEspera *sync.W
                         }
                     }()
 
-                    noFilho, err := BuscarTodosDiretorios(p, profundidade + 1, grupoEspera)
+                    noFilho, err := BuscarTodosDiretorios(p, profundidade + 1, globalWG)
                     if err == nil && noFilho != nil {
                         mutex.Lock()
                         no.Children = append(no.Children, noFilho)
@@ -127,8 +126,8 @@ func BuscarTodosDiretorios(caminho string, profundidade int, grupoEspera *sync.W
                     }
                 }(caminhoFilho)
             default: // se o semáforo estiver cheio, processa sincronamente nesta goroutine
-                grupoEspera.Add(1)
-                noFilho, err := BuscarTodosDiretorios(caminhoFilho, profundidade+1, grupoEspera)
+                globalWG.Add(1) // adiciona ao waitgroup principal
+                noFilho, err := BuscarTodosDiretorios(caminhoFilho, profundidade+1, globalWG)
                 if err == nil && noFilho != nil {
                     mutex.Lock()
                     no.Children = append(no.Children, noFilho)
