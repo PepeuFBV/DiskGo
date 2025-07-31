@@ -8,10 +8,13 @@ import (
 
 	"DiskGo/src/scanner"
 	"DiskGo/src/tree"
+	"DiskGo/src/utils"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/widget"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 )
 
 const maxCPUs = 12
@@ -81,6 +84,8 @@ func criarTreeWidget(raiz *tree.Node) *widget.Tree {
 	mapaDeNos := make(map[string]*tree.Node)
 	montaMapDeNos(raiz, "", mapaDeNos)
 
+	//Aviso: as funções abaixo estão em inglês apenas para combinar com os nomes da documentação
+
 	// Função que define se um item é um branch (possui filhos)
 	isBranch := func(idUnico string) bool {
 		no, ok := mapaDeNos[idUnico]
@@ -102,15 +107,29 @@ func criarTreeWidget(raiz *tree.Node) *widget.Tree {
 
 	//Cria o rótulo visual para cada item da árvore
 	createNode := func(branch bool) fyne.CanvasObject {
-		return widget.NewLabel("...")
-	}
+    icone := widget.NewIcon(nil)
+    texto := widget.NewLabel("")
+    return container.NewHBox(icone, texto)
+}
 
-	//Atualiza o rótulo com os dados do nó
 	updateNode := func(idUnico string, branch bool, obj fyne.CanvasObject) {
 		no := mapaDeNos[idUnico]
-		label := obj.(*widget.Label)
-		label.SetText(fmt.Sprintf("%s (%s, %d bytes)", no.Name, no.Type, no.Size))
+		tamanho := utils.SizeConverter{Bytes: uint64(no.Size)}.ToReadable()
+
+		hbox := obj.(*fyne.Container)
+		icone := hbox.Objects[0].(*widget.Icon)
+		texto := hbox.Objects[1].(*widget.Label)
+
+		//Define ícone baseado em tipo e branch
+		if branch {
+			icone.SetResource(theme.FolderIcon()) //Pasta "fechada" por padrão
+		} else {
+			icone.SetResource(theme.FileIcon())
+		}
+
+		texto.SetText(fmt.Sprintf("%s	%s", no.Name, tamanho))
 	}
+
 
 	//Monta finalmente a árvore
 	//Popular esses atributos diz à arvore como lidar com a árvore
