@@ -2,7 +2,6 @@ package tree
 
 import (
 	"fmt"
-
 	"DiskGo/src/utils"
 )
 
@@ -13,6 +12,7 @@ type Node struct {
 	Children []*Node
 	Size     int64
 	Type     string
+    ID       string //para o widget tree
 }
 
 func PrintTree(root *Node) {
