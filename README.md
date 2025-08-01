@@ -1,88 +1,89 @@
 
+
 # DiskGo
 
-DiskGo é um aplicativo em Go projetado para facilitar a leitura e análise de discos/unidades. O programa percorre diretórios, lê arquivos e analisa o uso do disco de forma simples.
+DiskGo is a Go application designed to make disk/drive reading and analysis easy. The program traverses directories, reads files, and analyzes disk usage in a simple way.
 
-## Funcionalidades
+## Features
 
-- Varredura recursiva de diretórios e arquivos
-- Exibe a estrutura de árvore dos diretórios com tamanhos de arquivos
-- Usa concorrência para varredura mais rápida
-- Formatação de tamanho legível (B, KB, MB, GB, TB)
+- Recursive scanning of directories and files
+- Displays the directory tree structure with file sizes
+- Uses concurrency for faster scanning
+- Human-readable size formatting (B, KB, MB, GB, TB)
 
 ## Screenshot
 
 ![DiskGo Screenshot](images/diskgo-example.png)
 
-## Instalação de Dependências (Linux)
+## Dependency Installation (Linux)
 
-Antes de rodar o DiskGo, instale as dependências necessárias para o Fyne:
+Before running DiskGo, install the necessary dependencies for Fyne:
 
 ```sh
 sudo apt-get update
 sudo apt-get install libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libgl1-mesa-dev libxxf86vm-dev
 ```
 
-## Compilação e Distribuição
+## Compilation and Distribution
 
-### Compilação Simples
+### Simple Compilation
 
-1. Compile o projeto:
+1. Build the project:
 
     ```sh
     go build -o diskgo src/main.go
     ```
 
-2. Execute o binário:
+2. Run the binary:
 
     ```sh
     ./diskgo
     ```
 
-### Compilação Otimizada (Recomendado para Distribuição)
+### Optimized Compilation (Recommended for Distribution)
 
-Para criar um binário otimizado para distribuição em qualquer PC Linux:
+To create an optimized binary for distribution on any Linux PC:
 
 ```sh
-# Usando o script de build
+# using the build script
 ./build.sh
 
-# Ou usando Make
+# or using Make
 make build
 
-# Ou manualmente com otimizações
+# or manually with optimizations
 CGO_ENABLED=1 go build -ldflags="-s -w" -o diskgo src/main.go
 ```
 
-### Compilação para Múltiplas Arquiteturas
+### Multi-Architecture Compilation
 
-Para criar binários para diferentes arquiteturas Linux:
+To create binaries for different Linux architectures:
 
 ```sh
-# Todas as arquiteturas suportadas
+# all supported architectures
 make build-all
 
-# Ou individualmente:
-make build-linux-amd64    # Para processadores Intel/AMD 64-bit
-make build-linux-arm64    # Para processadores ARM 64-bit
-make build-linux-386      # Para processadores 32-bit
+# or individually:
+make build-linux-amd64    # for Intel/AMD 64-bit processors
+make build-linux-arm64    # for ARM 64-bit processors
+make build-linux-386      # for 32-bit processors
 ```
 
-### Instalação Sistema-wide
+### System-wide Installation
 
-Para instalar o DiskGo para todos os usuários do sistema:
+To install DiskGo for all system users:
 
 ```sh
-# Usando Make (recomendado)
+# using Make (recommended)
 make install
 
-# Ou manualmente
+# or manually
 sudo cp diskgo /usr/local/bin/
 ```
 
-### Distribuição
+### Distribution
 
-O binário compilado (`diskgo`) é completamente autônomo e pode ser executado em qualquer sistema Linux com as seguintes dependências gráficas instaladas (dependências da biblioteca Fyne):
+The compiled binary (`diskgo`) is completely standalone and can be run on any Linux system with the following graphical dependencies installed (Fyne library dependencies):
 
 ```sh
 # Ubuntu/Debian
@@ -95,21 +96,21 @@ sudo yum install libX11-devel libXcursor-devel libXrandr-devel libXinerama-devel
 sudo pacman -S libx11 libxcursor libxrandr libxinerama libxi mesa
 ```
 
-## Uso
+## Usage
 
-Por padrão, o DiskGo faz a varredura do diretório home do usuário atual. Você pode mudar isso na variável `userHomeDirAsRoot` no arquivo `src/main.go` (true ou false).
+By default, DiskGo scans the current user's home directory. You can change this in the `userHomeDirAsRoot` variable in the `src/main.go` file (true or false).
 
-### Execução Rápida (Desenvolvimento)
+### Quick Run (Development)
 
-Você também pode rodar rapidamente o aplicativo sem compilar usando:
+You can also quickly run the application without compiling using:
 
 ```sh
 go run src/main.go
 ```
 
-## Instalação
+## Installation
 
-Clone o repositório e rode usando Go:
+Clone the repository and run using Go:
 
 ```sh
 git clone https://github.com/pepeufbv/DiskGo.git
@@ -117,6 +118,6 @@ cd DiskGo
 go run src/main.go
 ```
 
-## Licença
+## License
 
-Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

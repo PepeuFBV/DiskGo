@@ -5,29 +5,28 @@ import (
 	"fmt"
 )
 
-const profundidadeExibicao = 1 // 0 para sem limite de exibição
+const displayDepth = 1 // 0 for unlimited display depth
 
 type Node struct {
-	Name     string
-	Children []*Node
-	Size     int64
-	Type     string
-    ID       string //para o widget tree
+   Name     string
+   Children []*Node
+   Size     int64
+   Type     string
+   ID       string // for the widget tree
 }
 
-func ImprimirArvore(raiz *Node) {
-    ImprimirArvoreRecursivo(raiz, "", 0)
+func PrintTree(root *Node) {
+   printTreeRecursive(root, "", 0)
 }
 
-func ImprimirArvoreRecursivo(raiz *Node, indent string, profundidade int) {
-    if raiz == nil {
-        return
-    }
-    fmt.Printf("%sNome: %s, Tipo: %s, Tamanho: %s bytes\n", indent, raiz.Name, raiz.Type, utils.SizeConverter{Bytes: uint64(raiz.Size)}.ToReadable())
-    if profundidadeExibicao == 0 || profundidade < profundidadeExibicao {
-        for _, filho := range raiz.Children {
-            ImprimirArvoreRecursivo(filho, indent + "  ", profundidade + 1)
-        }
-    }
+func printTreeRecursive(root *Node, indent string, depth int) {
+   if root == nil {
+       return
+   }
+   fmt.Printf("%sName: %s, Type: %s, Size: %s bytes\n", indent, root.Name, root.Type, utils.SizeConverter{Bytes: uint64(root.Size)}.ToReadable())
+   if displayDepth == 0 || depth < displayDepth {
+       for _, child := range root.Children {
+           printTreeRecursive(child, indent+"  ", depth+1)
+       }
+   }
 }
-
