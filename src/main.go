@@ -21,148 +21,133 @@ const maxCPUs = 12
 const userHomeDirAsRoot = true
 
 func main() {
-	// inicializa o app Fyne e a janela
-	a := app.New()
-	w := a.NewWindow("Disk Tree")
+   a := app.New()
+   w := a.NewWindow("Disk Tree")
 
-	// logs de execução do terminal, pasível de remoção após o fim da interface
-	fmt.Println(runtime.NumCPU(), "CPU cores disponíveis, usando", maxCPUs, "cores para varredura.")
-	runtime.GOMAXPROCS(maxCPUs)
-	fmt.Println("Iniciando varredura...")
+   fmt.Println(runtime.NumCPU(), "CPU cores available, using", maxCPUs, "cores for scanning.")
+   runtime.GOMAXPROCS(maxCPUs)
+   fmt.Println("Starting scan...")
 
-	resultado := make(chan *tree.Node)
+   result := make(chan *tree.Node)
 
-	// Goroutine para chamar a função de busca dos diretórios
-	go func() {
-		var waitgroup sync.WaitGroup // número de goroutines concorrentes global para aguardar finalização
-		waitgroup.Add(1) // só adiciona 1 para a raiz, as goroutines filhas adicionam para si mesmas
-		raiz, _ := scanner.BuscarTodosDiretorios(PegarDiretorioRaiz(userHomeDirAsRoot), 0, &waitgroup)
-		waitgroup.Wait() // espera todas as goroutines terminarem
+   go func() {
+	   var waitgroup sync.WaitGroup // global waitgroup for concurrent goroutines
+	   waitgroup.Add(1) // only add 1 for the root, child goroutines add for themselves
+	   root, _ := scanner.ScanAllDirectories(GetRootDirectory(userHomeDirAsRoot), 0, &waitgroup)
+	   waitgroup.Wait() // wait for all goroutines to finish
 
-		resultado <- raiz
-	}()
+	   result <- root
+   }()
 
-	// recebe o resultado do canal
-	raiz := <- resultado
+   root := <-result // receive the result from the channel
 
-	if raiz == nil {
-		fmt.Println("Nenhum diretório encontrado.")
-		return
-	}
+   if root == nil {
+	   fmt.Println("No directory found.")
+	   return
+   }
 
-	arquivos, diretorios := scanner.ObterContadores()
-	totalBytes := scanner.ObterTotalBytesVasculhados()
-	totalNodes := arquivos + diretorios
-	fmt.Printf("Varredura concluída!\n")
-	fmt.Printf("Total de nós na árvore: %d\n", totalNodes)
-	fmt.Printf("Arquivos encontrados: %d\n", arquivos)
-	fmt.Printf("Diretórios encontrados: %d\n", diretorios)
-	fmt.Printf("Total de bytes vasculhados: %s\n", utils.SizeConverter{Bytes: uint64(totalBytes)}.ToReadable())
+   files, directories := scanner.GetCounters()
+   totalBytes := scanner.GetTotalScannedBytes()
+   totalNodes := files + directories
+   fmt.Printf("Scan completed!\n")
+   fmt.Printf("Total nodes in tree: %d\n", totalNodes)
+   fmt.Printf("Files found: %d\n", files)
+   fmt.Printf("Directories found: %d\n", directories)
+   fmt.Printf("Total bytes scanned: %s\n", utils.SizeConverter{Bytes: uint64(totalBytes)}.ToReadable())
 
-	// instância o Widget Tree e exibe
-	treeWidget := criarTreeWidget(raiz) // função estrela da noite
-	w.SetContent(treeWidget)
-	w.ShowAndRun()
+   treeWidget := createTreeWidget(root)
+   w.SetContent(treeWidget)
+   w.ShowAndRun()
 }
 
-func PegarDiretorioRaiz(useHomeDir bool) string { // retorna diretório raiz com base no sistema operacional
-	if useHomeDir {
-		return ObterDiretorioHomeUsuario()
-	}
-	if runtime.GOOS == "windows" {
-		return "C:\\"
-	}
-	return "/"
+func GetRootDirectory(useHomeDir bool) string {
+   if useHomeDir {
+	   return GetUserHomeDirectory()
+   }
+   if runtime.GOOS == "windows" {
+	   return "C:\\"
+   }
+   return "/"
 }
 
-func ObterDiretorioHomeUsuario() string {
-	diretorioHome, erro := os.UserHomeDir()
-	if erro != nil {
-		fmt.Println("Erro ao obter diretório home:", erro)
-		return ""
-	}
-	return diretorioHome
+func GetUserHomeDirectory() string {
+   homeDir, err := os.UserHomeDir()
+   if err != nil {
+	   fmt.Println("Error getting user home directory:", err)
+	   return ""
+   }
+   return homeDir
 }
 
-// montagem do Widget Tree
-func criarTreeWidget(raiz *tree.Node) *widget.Tree {
-	// Cria um mapa para armazenar referências a nós por ID
-	mapaDeNos := make(map[string]*tree.Node)
-	montaMapDeNos(raiz, "", mapaDeNos)
+func createTreeWidget(root *tree.Node) *widget.Tree {
+   nodeMap := make(map[string]*tree.Node)
+   buildNodeMap(root, "", nodeMap)
 
-	// aviso: as funções abaixo estão em inglês apenas para combinar com os nomes da documentação
+   // determine if an item is a branch (has children)
+   isBranch := func(uniqueID string) bool {
+	   node, ok := nodeMap[uniqueID]
+	   return ok && len(node.Children) > 0
+   }
 
-	// função que define se um item é um branch (possui filhos)
-	isBranch := func(idUnico string) bool {
-		no, ok := mapaDeNos[idUnico]
-		return ok && len(no.Children) > 0
-	}
+   getChildren := func(uniqueID string) []string {
+	   node, ok := nodeMap[uniqueID]
+	   if !ok {
+		   return []string{}
+	   }
+	   ids := []string{}
+	   for _, child := range node.Children {
+		   ids = append(ids, child.ID)
+	   }
+	   return ids
+   }
 
-	// retorna os filhos de um determinado ID
-	getChildren := func(idUnico string) []string {
-		no, ok := mapaDeNos[idUnico]
-		if !ok {
-			return []string{}
-		}
-		ids := []string{}
-		for _, child := range no.Children {
-			ids = append(ids, child.ID)
-		}
-		return ids
-	}
+   createNode := func(branch bool) fyne.CanvasObject {
+	   icon := widget.NewIcon(nil)
+	   label := widget.NewLabel("")
+	   return container.NewHBox(icon, label)
+   }
 
-	// cria o rótulo visual para cada item da árvore
-	createNode := func(branch bool) fyne.CanvasObject {
-		icone := widget.NewIcon(nil)
-		texto := widget.NewLabel("")
-		return container.NewHBox(icone, texto)
-	}
+   updateNode := func(uniqueID string, branch bool, obj fyne.CanvasObject) {
+	   node := nodeMap[uniqueID]
+	   size := utils.SizeConverter{Bytes: uint64(node.Size)}.ToReadable()
 
-	updateNode := func(idUnico string, branch bool, obj fyne.CanvasObject) {
-		no := mapaDeNos[idUnico]
-		tamanho := utils.SizeConverter{Bytes: uint64(no.Size)}.ToReadable()
+	   hbox := obj.(*fyne.Container)
+	   icon := hbox.Objects[0].(*widget.Icon)
+	   label := hbox.Objects[1].(*widget.Label)
 
-		hbox := obj.(*fyne.Container)
-		icone := hbox.Objects[0].(*widget.Icon)
-		texto := hbox.Objects[1].(*widget.Label)
+	   if branch {
+		   icon.SetResource(theme.FolderIcon()) // closed folder by default
+	   } else {
+		   icon.SetResource(theme.FileIcon()) // file icon
+	   }
 
-		// define ícone baseado em tipo e branch
-		if branch {
-			icone.SetResource(theme.FolderIcon()) // pasta "fechada" por padrão
-		} else {
-			icone.SetResource(theme.FileIcon())
-		}
+	   label.SetText(fmt.Sprintf("%s\t%s", node.Name, size))
+   }
 
-		texto.SetText(fmt.Sprintf("%s	%s", no.Name, tamanho))
-	}
+   treeWidget := widget.NewTreeWithStrings(map[string][]string{})
+   treeWidget.ChildUIDs = getChildren
+   treeWidget.IsBranch = isBranch
+   treeWidget.CreateNode = createNode
+   treeWidget.UpdateNode = updateNode
+   treeWidget.Root = root.ID
 
-
-	// monta finalmente a árvore
-	// popular esses atributos diz à arvore como lidar com a árvore
-	treeWidget := widget.NewTreeWithStrings(map[string][]string{})
-	treeWidget.ChildUIDs = getChildren
-	treeWidget.IsBranch = isBranch
-	treeWidget.CreateNode = createNode
-	treeWidget.UpdateNode = updateNode
-	treeWidget.Root = raiz.ID
-
-	return treeWidget
+   return treeWidget
 }
 
-// função auxiliar: monta um ID único para cada nó, baseado no seu caminho até a raiz
-func montaMapDeNos(n *tree.Node, parentID string, m map[string]*tree.Node) {
-	if n == nil {
-		return
-	}
-	if n.ID == "" {
-		n.ID = parentID + "/" + n.Name
-	}
-	m[n.ID] = n
-	for _, child := range n.Children {
-		montaMapDeNos(child, n.ID, m)
-	}
+// helper function: builds a unique ID for each node based on its path to the root
+func buildNodeMap(n *tree.Node, parentID string, m map[string]*tree.Node) {
+   if n == nil {
+	   return
+   }
+   if n.ID == "" {
+	   n.ID = parentID + "/" + n.Name
+   }
+   m[n.ID] = n
+   for _, child := range n.Children {
+	   buildNodeMap(child, n.ID, m)
+   }
 }
 
-// referências;
-//- https://docs.fyne.io/
-//- https://docs.fyne.io/api/v2.4/widget/tree.html
+// references:
+// - https://docs.fyne.io/
+// - https://docs.fyne.io/api/v2.4/widget/tree.html
