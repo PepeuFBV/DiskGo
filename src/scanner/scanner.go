@@ -11,154 +11,153 @@ import (
 	"sync/atomic"
 )
 
-// variáveis globais para contadores atômicos (exclusão mútua)
-var contadorArquivos int64 // contador atômico para arquivos
-var contadorDiretorios int64  // contador atômico para diretórios
-var totalBytesVasculhados int64 // contador atômico para total de bytes vasculhados
-var goroutinesAtivas int64 // contador atômico para goroutines ativas do programa
+// global atomic counters (mutex-free)
+var fileCounter int64
+var dirCounter int64
+var totalScannedBytes int64
+var activeGoroutines int64
 
-const profundidadeMaxima = -1 // -1 para sem limite
-var maximoGoroutines = 300 // limitar goroutines concorrentes, 0 para sem limite
-const maximoMemoriaBytes = 1024 * 1024 * 1024 * 12 // limite de memória de 12 GB
+const maxDepth = -1 // -1 for unlimited
+var maxGoroutines = 300 // limit concurrent goroutines, 0 for unlimited
+const maxMemoryBytes = 1024 * 1024 * 1024 * 12 // 12 GB memory limit
 
-const imprimirProgresso = true // habilitar log de progresso
-const imprimirCadaArquivos = 100000 // 0 para desabilitar log de progresso
+const printProgress = true // enable progress log
+const printEveryFiles = 100000 // 0 to disable progress log
 
-var semaforo chan struct{} // semáforo para limitar goroutines concorrentes
+var semaphore chan struct{} // semaphore to limit concurrent goroutines
 
-func init() { // sempre inicializa o semáforo com um valor seguro
-    if maximoGoroutines == 0 {
-        maximoGoroutines = 200 // valor seguro padrão reduzido
+func init() { // always initialize the semaphore with a safe value
+    if maxGoroutines == 0 {
+        maxGoroutines = 200 // safe default value
     }
-    semaforo = make(chan struct{}, maximoGoroutines)
+    semaphore = make(chan struct{}, maxGoroutines)
 }
 
-func VerificarLimiteMemoria() {
+func CheckMemoryLimit() {
     var m runtime.MemStats
     runtime.ReadMemStats(&m)
-    if m.Alloc > maximoMemoriaBytes {
-        log.Fatalf("Limite de memória excedido: %d bytes usados", m.Alloc)
+    if m.Alloc > maxMemoryBytes {
+        log.Fatalf("Memory limit exceeded: %d bytes used", m.Alloc)
     }
 }
 
-func LogarProgresso() {
-    total := atomic.LoadInt64(&contadorArquivos)
-    if imprimirProgresso {
-        if total % imprimirCadaArquivos == 0 && total != 0 {
+func LogProgress() {
+    total := atomic.LoadInt64(&fileCounter)
+    if printProgress {
+        if printEveryFiles > 0 && total%printEveryFiles == 0 && total != 0 {
             var m runtime.MemStats
             runtime.ReadMemStats(&m)
-            memAtual := utils.SizeConverter{Bytes: m.Alloc}.ToReadable()
-            memTotalVasculhada := utils.SizeConverter{Bytes: uint64(atomic.LoadInt64(&totalBytesVasculhados))}.ToReadable()
-            numGoroutines := atomic.LoadInt64(&goroutinesAtivas)
-            log.Printf("Progresso: arquivos=%d, dirs=%d, mem_atual=%s, mem_total_vasculhada=%s, goroutines=%d", total, atomic.LoadInt64(&contadorDiretorios), memAtual, memTotalVasculhada, numGoroutines)
+            memCurrent := utils.SizeConverter{Bytes: m.Alloc}.ToReadable()
+            memTotalScanned := utils.SizeConverter{Bytes: uint64(atomic.LoadInt64(&totalScannedBytes))}.ToReadable()
+            numGoroutines := atomic.LoadInt64(&activeGoroutines)
+            log.Printf("Progress: files=%d, dirs=%d, mem_current=%s, mem_total_scanned=%s, goroutines=%d", total, atomic.LoadInt64(&dirCounter), memCurrent, memTotalScanned, numGoroutines)
         }
     }
 }
 
-func BuscarTodosDiretorios(caminho string, profundidade int, globalWG *sync.WaitGroup) (*tree.Node, error) {
-    defer globalWG.Done() // marca a goroutine como concluída
+func ScanAllDirectories(path string, depth int, globalWG *sync.WaitGroup) (*tree.Node, error) {
+    defer globalWG.Done()
 
-    VerificarLimiteMemoria()
+    CheckMemoryLimit()
 
-    if profundidadeMaxima >= 0 && profundidade > profundidadeMaxima {
+    if maxDepth >= 0 && depth > maxDepth {
         return nil, nil
     }
 
-    info, err := os.Stat(caminho)
-    if err != nil { // se for erro de arquivo inexistente, apenas ignore silenciosamente
+    info, err := os.Stat(path)
+    if err != nil {
         if os.IsNotExist(err) {
             return nil, nil
         }
         return nil, err
     }
 
-    no := &tree.Node{
+    node := &tree.Node{
         Name: info.Name(),
         Size: 0,
         Type: func() string {
             if info.IsDir() {
-                return "diretorio"
+                return "directory"
             }
-            return "arquivo"
+            return "file"
         }(),
     }
 
     if !info.IsDir() {
-        no.Size = info.Size() // adiciona o tamanho do arquivo no nó
-        atomic.AddInt64(&totalBytesVasculhados, info.Size())
-        atomic.AddInt64(&contadorArquivos, 1)
-        LogarProgresso()
-        return no, nil
+        node.Size = info.Size()
+        atomic.AddInt64(&totalScannedBytes, info.Size())
+        atomic.AddInt64(&fileCounter, 1)
+        LogProgress()
+        return node, nil
     } else {
-        entradas, err := os.ReadDir(caminho)
+        entries, err := os.ReadDir(path)
         if err != nil {
             return nil, err
         }
 
-        var mutex sync.Mutex // mutex para proteger o estado compartilhado de memória do nó atual
-        var localWG sync.WaitGroup // waitgroup local para goroutines nesta função
+        var mutex sync.Mutex
+        var localWG sync.WaitGroup
 
-        for _, entrada := range entradas {
-            caminhoFilho := filepath.Join(caminho, entrada.Name())
+        for _, entry := range entries {
+            childPath := filepath.Join(path, entry.Name())
             select {
-            case semaforo <- struct{}{}: // se o semáforo não estiver cheio, processa em goroutine
+            case semaphore <- struct{}{}: // acquire semaphore to limit goroutines
                 localWG.Add(1)
                 globalWG.Add(1)
-                atomic.AddInt64(&goroutinesAtivas, 1) // incrementa contador de goroutines ativas
+                atomic.AddInt64(&activeGoroutines, 1)
 
-                go func(p string) { // goroutine para processar cada filho
-                    defer localWG.Done() // marca a goroutine local como concluída
-                    defer func() { // decrementa contador de goroutines ativas e libera o semáforo
-                        atomic.AddInt64(&goroutinesAtivas, -1) // decrementa contador de goroutines ativas
-                        <-semaforo // libera o semáforo
-                        if r := recover(); r != nil { // captura pânico para evitar crash
+                go func(p string) {
+                    defer localWG.Done()
+                    defer func() {
+                        atomic.AddInt64(&activeGoroutines, -1)
+                        <-semaphore
+                        if r := recover(); r != nil {
                             log.Printf("panic in goroutine for %s: %v", p, r)
                         }
                     }()
 
-                    noFilho, err := BuscarTodosDiretorios(p, profundidade + 1, globalWG)
-                    if err == nil && noFilho != nil {
+                    childNode, err := ScanAllDirectories(p, depth+1, globalWG)
+                    if err == nil && childNode != nil {
                         mutex.Lock()
-                        no.Children = append(no.Children, noFilho)
-                        no.Size += noFilho.Size
+                        node.Children = append(node.Children, childNode)
+                        node.Size += childNode.Size
                         mutex.Unlock()
-                    } else if err != nil && !os.IsNotExist(err) { // ignora erros de arquivo inexistente
-                        log.Printf("Erro ao buscar %s: %v", p, err)
+                    } else if err != nil && !os.IsNotExist(err) {
+                        log.Printf("Error scanning %s: %v", p, err)
                     }
-                }(caminhoFilho)
-            default: // se o semáforo estiver cheio, processa sincronamente nesta goroutine (sem concorrência)
-                globalWG.Add(1) // adiciona ao waitgroup principal
-                noFilho, err := BuscarTodosDiretorios(caminhoFilho, profundidade+1, globalWG)
-                if err == nil && noFilho != nil {
+                }(childPath)
+            default: // recursively scan without semaphore if limit reached
+                globalWG.Add(1)
+                childNode, err := ScanAllDirectories(childPath, depth+1, globalWG)
+                if err == nil && childNode != nil {
                     mutex.Lock()
-                    no.Children = append(no.Children, noFilho)
-                    no.Size += noFilho.Size
+                    node.Children = append(node.Children, childNode)
+                    node.Size += childNode.Size
                     mutex.Unlock()
                 } else if err != nil && !os.IsNotExist(err) {
-                    log.Printf("Erro ao buscar %s: %v", caminhoFilho, err)
+                    log.Printf("Error scanning %s: %v", childPath, err)
                 }
             }
         }
-        localWG.Wait() // espera todas as goroutines nesta função terminarem
+        localWG.Wait()
     }
 
-    // conta o diretório apenas quando vai ser retornado com sucesso
-    if no.Type == "diretorio" {
-        atomic.AddInt64(&contadorDiretorios, 1)
-        LogarProgresso()
+    if node.Type == "directory" {
+        atomic.AddInt64(&dirCounter, 1)
+        LogProgress()
     }
 
-    return no, nil
+    return node, nil
 }
 
-func ObterContadores() (arquivos int64, diretorios int64) {
-    return atomic.LoadInt64(&contadorArquivos), atomic.LoadInt64(&contadorDiretorios)
+func GetCounters() (files int64, directories int64) {
+    return atomic.LoadInt64(&fileCounter), atomic.LoadInt64(&dirCounter)
 }
 
-func ObterTotalBytesVasculhados() int64 {
-    return atomic.LoadInt64(&totalBytesVasculhados)
+func GetTotalScannedBytes() int64 {
+    return atomic.LoadInt64(&totalScannedBytes)
 }
 
-func ObterGoroutinesAtivas() int64 {
-    return atomic.LoadInt64(&goroutinesAtivas)
+func GetActiveGoroutines() int64 {
+    return atomic.LoadInt64(&activeGoroutines)
 }
